@@ -9,7 +9,7 @@ import sys
 
 from collections import namedtuple
 from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 from googleapiclient.http import MediaIoBaseDownload
 
@@ -25,49 +25,18 @@ SAMPLE_SPREADSHEET_ID = "test_spreadsheet"
 SAMPLE_RANGE_NAME = 'Class Data!A2:E7'
 ############## END OF CONSTS ###############
 
-DataTypeHandler = namedtuple('DataTypeHandler', ['scopes', 'pseudo_file' ,'data_extract_func'])
-
-DATA_SOURCES = { "DRIVE" :  DataTypeHandler(scopes=['https://www.googleapis.com/auth/drive.file'], 
-                                            get_data = __get_dataset_data),
-                 "SPREADSHEETS" : DataTypeHandler(scopes=['https://www.googleapis.com/auth/spreadsheets.readonly'],  
-                                            get_data = __get_spreadsheet_data),
-                }
-
 def get_creds(scope):
-    # Variable creds will store the user access token.
-    # If no valid token found we will create one.
-    creds = None
+    return service_account.Credentials.from_service_account_file('credentials.json', scopes=scope)
 
-    # The file token.pickle stores the user's access and refresh tokens.
-    #  It is created automatically when the authorization flow completes for the first time.
-    if os.path.exists('token.pickle'):
-        # Read the token from the file and store it in the variable creds
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-
-    # If no valid credentials are available, request the user to log in.
-    if not creds or not creds.valid:
-        # If token is expired, it will be refreshed, else, we will request a new one.
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', scope)
-            creds = flow.run_local_server(port=0)
-
-        # Save the access token in token.pickle file for future usage
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-
-    return creds
-
-def __get_dataset_data(creds):
+def _get_dataset_data(creds):
      # Connect to the API service
     service = build('drive', 'v3', credentials=creds)
-
+    import pdb; pdb.set_trace()
     # request the file id from the API.
-    results = service.files().list(q = f"name = '{DATASET_FILE_NAME}'", fields="files(id, name)").execute()
+    query_string = f"name = {DATASET_FILE_NAME}"
+    results = service.files().list(q = query_string, fields="files(id, name)").execute()
     items = results.get('files', [])
-
+    
     if len(items) == 0:
         raise NameError(f"Could not find file with the name <{DATASET_FILE_NAME}> on the drive.")
 
@@ -96,7 +65,7 @@ def __get_dataset_data(creds):
         #TODO: Maybe we should handle some exceptions?
         raise
 
-def __get_spreadsheet_data(creds):    
+def _get_spreadsheet_data(creds):    
     """
     Returns matrix of values. 
     """
@@ -111,12 +80,23 @@ def __get_spreadsheet_data(creds):
 
 
 
+DataTypeHandler = namedtuple('DataTypeHandler', ['scopes', 'get_data'])
+
+DATA_SOURCES = { "DRIVE" :  DataTypeHandler(scopes=['https://www.googleapis.com/auth/drive'], 
+                                            get_data = _get_dataset_data),
+                 "SPREADSHEETS" : DataTypeHandler(scopes=['https://www.googleapis.com/auth/spreadsheets.readonly'],  
+                                            get_data = _get_spreadsheet_data)
+                }
+
+
 
 def magic(type):
-    data_type = DATA_SOURCES[type.upper()]
-    creds = get_creds(data_type.scopes)
-    dataset = data_type.get_data(creds)
-
+    try:
+        data_type = DATA_SOURCES[type.upper()]
+        creds = get_creds(data_type.scopes)
+        dataset = data_type.get_data(creds)
+    except Exception as ex:
+        print(ex)
 
 if __name__ == "__main__":
 	magic(sys.argv[1])
