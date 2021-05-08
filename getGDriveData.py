@@ -23,7 +23,7 @@ SAMPLE_SPREADSHEET_ID = "test_spreadsheet"
 # The range in the spreadsheet.
 # E.g. for a table A2 to E7, in the spreadsheet named "Class Data" -  'Class Data!A2:E7'
 SAMPLE_RANGE_NAME = 'Class Data!A2:E7'
-############## END OF CONSTS ###############
+############## END OF CONSTS ###############``
 
 def get_creds(scope):
     return service_account.Credentials.from_service_account_file('credentials.json', scopes=scope)
@@ -31,7 +31,6 @@ def get_creds(scope):
 def _get_dataset_data(creds):
      # Connect to the API service
     service = build('drive', 'v3', credentials=creds)
-    import pdb; pdb.set_trace()
     # request the file id from the API.
     query_string = f"name = {DATASET_FILE_NAME}"
     results = service.files().list(q = query_string, fields="files(id, name)").execute()
@@ -99,4 +98,6 @@ def magic(type):
         print(ex)
 
 if __name__ == "__main__":
-	magic(sys.argv[1])
+
+
+    magic(sys.argv[1])
